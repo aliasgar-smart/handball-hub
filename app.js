@@ -1,10 +1,11 @@
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
 const isApp = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
 const badge = document.getElementById("appModeBadge");
-if (isApp) { badge.textContent = "App Mode ✓"; badge.classList.add("app"); }
+if (badge && isApp) { badge.textContent = "App Mode ✓"; badge.classList.add("app"); }
 
 function showToast(msg) {
   const t = document.getElementById("toast");
+  if (!t) return;
   t.textContent = msg; t.classList.add("show");
   clearTimeout(window._tt);
   window._tt = setTimeout(() => t.classList.remove("show"), 2600);
@@ -22,7 +23,7 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
     document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
     btn.classList.add("active");
-    document.getElementById(`panel-${btn.dataset.tab}`).classList.add("active");
+    document.getElementById(`panel-${btn.dataset.tab}`)?.classList.add("active");
   };
 });
 
@@ -46,7 +47,7 @@ let viewMode = "calendar", quickMode = "all", maxDayOffset = 3, currentGames = [
 
 function renderGroupedGames(games) {
   const box = document.getElementById("gamesContainer");
-  const q = document.getElementById("leagueFilter").value.trim().toLowerCase();
+  const q = (document.getElementById("leagueFilter")?.value || "").trim().toLowerCase();
   box.innerHTML = "";
   let list = games || [];
   if (quickMode === "live") list = list.filter(g => ["1H","2H","HT","ET","BT","PT"].includes(g.status?.short));
@@ -55,7 +56,10 @@ function renderGroupedGames(games) {
   if (q) list = list.filter(g => `${g.league?.name} ${g.teams?.home?.name} ${g.teams?.away?.name} ${g.country?.name}`.toLowerCase().includes(q));
 
   if (!list.length) {
-    box.innerHTML = `<div class="card"><p class="muted">No matches found in this date range. Tap <strong>➕ Load Next 5 Days</strong> or check the Official Match Centers below.</p></div>`;
+    const msg = !store.apiKey
+      ? "Save an API key in ⚙️ Setup to load matches here, or use the Official Match Centers below."
+      : `No ${quickMode === "all" ? "" : quickMode.toUpperCase() + " "}matches found in this range.`;
+    box.innerHTML = `<div class="card"><p class="muted">${msg}</p></div>`;
     return;
   }
 
@@ -99,12 +103,12 @@ async function loadCalendar(force = false) {
   const statusEl = document.getElementById("apiStatusText");
   const moreBtn = document.getElementById("moreDaysBtn");
   if (!store.apiKey) {
-    statusEl.innerHTML = `Use the <strong>Official Match Centers</strong> below for free live IHF &amp; EHF scores, or add an API key in <strong>⚙️ Setup</strong>.`;
-    moreBtn.style.display = "none";
-    document.getElementById("gamesContainer").innerHTML = "";
+    statusEl.innerHTML = `Use <strong>Official Match Centers</strong> below for free live scores, or add an API key in <strong>⚙️ Setup</strong>.`;
+    if (moreBtn) moreBtn.style.display = "none";
+    renderGroupedGames([]);
     return;
   }
-  moreBtn.style.display = "inline-flex";
+  if (moreBtn) moreBtn.style.display = "inline-flex";
   const dates = [];
   for (let i = -1; i <= maxDayOffset; i++) dates.push(dateStrOffset(i));
   statusEl.textContent = "Loading match dates...";
@@ -128,7 +132,7 @@ async function loadCalendar(force = false) {
 
 async function loadLeaguesList() {
   const sel = document.getElementById("leagueSelect");
-  if (!store.apiKey) return;
+  if (!sel || !store.apiKey) return;
   if (!store.leagues) {
     try {
       const data = await apiGet("leagues");
@@ -149,7 +153,7 @@ async function loadLeaguesList() {
 }
 
 async function loadLeagueGames() {
-  const val = document.getElementById("leagueSelect").value;
+  const val = document.getElementById("leagueSelect")?.value;
   const statusEl = document.getElementById("apiStatusText");
   if (!val || !store.apiKey) return;
   const [id, season] = val.split("|");
@@ -174,13 +178,16 @@ document.querySelectorAll(".view-btn").forEach(b => b.onclick = () => {
   if (viewMode === "league") loadLeaguesList(); else loadCalendar(false);
 });
 
-document.getElementById("refreshScheduleBtn").onclick = () => viewMode === "calendar" ? loadCalendar(true) : loadLeagueGames();
-document.getElementById("loadLeagueBtn").onclick = loadLeagueGames;
-document.getElementById("moreDaysBtn").onclick = () => { maxDayOffset += 5; loadCalendar(false); };
-document.getElementById("leagueFilter").oninput = () => renderGroupedGames(currentGames);
+document.getElementById("refreshScheduleBtn")?.addEventListener("click", () => viewMode === "calendar" ? loadCalendar(true) : loadLeagueGames());
+document.getElementById("loadLeagueBtn")?.addEventListener("click", loadLeagueGames);
+document.getElementById("moreDaysBtn")?.addEventListener("click", () => { maxDayOffset += 5; loadCalendar(false); });
+document.getElementById("leagueFilter")?.addEventListener("input", () => renderGroupedGames(currentGames));
+
 document.querySelectorAll("[data-quick]").forEach(ch => ch.onclick = () => {
   document.querySelectorAll("[data-quick]").forEach(c => c.classList.remove("active"));
-  ch.classList.add("active"); quickMode = ch.dataset.quick;
+  ch.classList.add("active");
+  quickMode = ch.dataset.quick;
+  showToast(`Filter: ${ch.textContent.trim()}`);
   renderGroupedGames(currentGames);
 });
 
@@ -198,8 +205,8 @@ const RULES = [
 
 let ruleCat = "all";
 function renderRules() {
-  const q = document.getElementById("ruleSearch").value.trim().toLowerCase();
-  const box = document.getElementById("rulesContainer"); box.innerHTML = "";
+  const q = (document.getElementById("ruleSearch")?.value || "").trim().toLowerCase();
+  const box = document.getElementById("rulesContainer"); if (!box) return; box.innerHTML = "";
   const list = RULES.filter(r => (ruleCat === "all" || (ruleCat === "saved" ? store.savedRules.includes(r.id) : r.cat === ruleCat)) && (!q || `${r.num} ${r.title} ${r.body}`.toLowerCase().includes(q)));
   if (!list.length) { box.innerHTML = `<div class="card"><p class="muted">No rules matched.</p></div>`; return; }
   list.forEach(r => {
@@ -214,14 +221,14 @@ function renderRules() {
   });
 }
 
-document.getElementById("ruleSearch").oninput = renderRules;
+document.getElementById("ruleSearch")?.addEventListener("input", renderRules);
 document.querySelectorAll("#ruleCategoryChips .chip").forEach(ch => ch.onclick = () => {
   document.querySelectorAll("#ruleCategoryChips .chip").forEach(c => c.classList.remove("active"));
   ch.classList.add("active"); ruleCat = ch.dataset.cat; renderRules();
 });
 
 function renderNotes() {
-  const box = document.getElementById("notesContainer"); box.innerHTML = "";
+  const box = document.getElementById("notesContainer"); if (!box) return; box.innerHTML = "";
   if (!store.notes.length) { box.innerHTML = `<div class="card"><p class="muted">No review notes yet.</p></div>`; return; }
   store.notes.forEach(n => {
     const card = document.createElement("div"); card.className = "card";
@@ -234,23 +241,23 @@ function renderNotes() {
   });
 }
 
-document.getElementById("saveNoteBtn").onclick = () => {
+document.getElementById("saveNoteBtn")?.addEventListener("click", () => {
   const m = document.getElementById("noteMatchInput").value.trim(), b = document.getElementById("noteBodyInput").value.trim();
   if (!m || !b) return showToast("Enter both match/topic and note.");
   store.notes.unshift({ id: Date.now(), match: m, body: b, date: new Date().toLocaleDateString() });
   document.getElementById("noteMatchInput").value = ""; document.getElementById("noteBodyInput").value = "";
   saveStore(); renderNotes(); showToast("Review note saved!");
-};
+});
 
-if (store.apiKey) document.getElementById("apiKeyInput").value = store.apiKey;
-document.getElementById("saveKeyBtn").onclick = () => {
+if (store.apiKey && document.getElementById("apiKeyInput")) document.getElementById("apiKeyInput").value = store.apiKey;
+document.getElementById("saveKeyBtn")?.addEventListener("click", () => {
   const k = document.getElementById("apiKeyInput").value.trim();
   if (!k) return showToast("Paste an API key first.");
   store.apiKey = k; saveStore(); showToast("API key saved!"); loadCalendar(true);
-};
-document.getElementById("clearKeyBtn").onclick = () => {
+});
+document.getElementById("clearKeyBtn")?.addEventListener("click", () => {
   delete store.apiKey; document.getElementById("apiKeyInput").value = ""; saveStore(); loadCalendar(); showToast("Key cleared.");
-};
+});
 
 function dlIcon(size, name) {
   const c = document.createElement("canvas"); c.width = size; c.height = size;
@@ -262,10 +269,10 @@ function dlIcon(size, name) {
   c.toBlob(b => { const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }, "image/png");
 }
 
-document.getElementById("downloadIconsBtn").onclick = () => {
+document.getElementById("downloadIconsBtn")?.addEventListener("click", () => {
   dlIcon(192, "icon-192.png");
   setTimeout(() => dlIcon(512, "icon-512.png"), 450);
   showToast("Downloading icon-192.png & icon-512.png!");
-};
+});
 
 loadCalendar(false); renderRules(); renderNotes();
