@@ -6,45 +6,65 @@
   <meta name="theme-color" content="#0b1220" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
+  <style>
+    .view-switch { display:flex; gap:6px; background:var(--bg); padding:4px; border-radius:12px; border:1px solid var(--border); margin-bottom:10px; }
+    .view-btn { flex:1; background:transparent; border:none; color:var(--muted); padding:8px; border-radius:9px; font-size:0.8rem; font-weight:700; cursor:pointer; }
+    .view-btn.active { background:var(--surface-2); color:var(--text); }
+    .date-header { display:flex; justify-content:space-between; align-items:center; margin:16px 2px 8px; padding:6px 10px; background:var(--surface-2); border-left:3px solid var(--accent); border-radius:8px; font-size:0.84rem; font-weight:800; color:var(--text); }
+    .date-header span:last-child { font-size:0.75rem; color:var(--muted); font-weight:600; }
+  </style>
   <title>HandballHub</title>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <div class="brand-logo">🤾</div>
-      <div><h1>HandballHub</h1><span>IHF • EHF • Rules • EHFTV</span></div>
+    <div class="top-head">
+      <div class="brand">
+        <div class="brand-logo">🤾</div>
+        <div><h1>HandballHub</h1><span>IHF • EHF • Rules • EHFTV</span></div>
+      </div>
+      <span class="mode-pill" id="appModeBadge">Web Mode</span>
     </div>
-    <span class="mode-pill" id="appModeBadge">Web Mode</span>
+    <nav class="top-nav">
+      <button class="nav-btn active" data-tab="scores">📅 Schedule</button>
+      <button class="nav-btn" data-tab="rules">📘 Rules</button>
+      <button class="nav-btn" data-tab="hub">📺 5-in-1</button>
+      <button class="nav-btn" data-tab="setup">⚙️ Setup</button>
+    </nav>
   </header>
-
-  <nav class="top-nav">
-    <button class="nav-btn active" data-tab="scores">🤾 Scores</button>
-    <button class="nav-btn" data-tab="rules">📘 Rules</button>
-    <button class="nav-btn" data-tab="hub">📺 5-in-1</button>
-    <button class="nav-btn" data-tab="setup">⚙️ Setup</button>
-  </nav>
 
   <div class="toast" id="toast"></div>
 
   <main class="content">
     <section id="panel-scores" class="panel active">
       <div class="card">
-        <div class="row" style="margin-bottom: 10px;">
-          <input type="date" id="scoreDate" style="flex: 1;" />
-          <button class="btn" id="fetchGamesBtn">🔄 Load Scores</button>
+        <div class="view-switch">
+          <button class="view-btn active" data-mode="calendar">📅 5-Day Calendar</button>
+          <button class="view-btn" data-mode="league">🏆 By Competition</button>
         </div>
-        <input type="text" id="leagueFilter" placeholder="Filter by league or team (EHF, IHF, World)..." />
+        <div id="leaguePickerBox" style="display:none; margin-bottom:10px;">
+          <div class="row">
+            <select id="leagueSelect" style="flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:11px; border-radius:12px;"><option value="">Loading leagues...</option></select>
+            <button class="btn" id="loadLeagueBtn">Load</button>
+          </div>
+        </div>
+        <div class="row" style="margin-bottom: 8px;">
+          <input type="text" id="leagueFilter" placeholder="Filter team, league, or country..." style="flex:1;" />
+          <button class="btn" id="refreshScheduleBtn">🔄 Refresh</button>
+        </div>
         <div class="chips">
-          <button class="chip active" data-quick="today">📅 Today</button>
+          <button class="chip active" data-quick="all">All Dates</button>
           <button class="chip" data-quick="live">🔴 Live</button>
           <button class="chip" data-quick="ehf">🇪🇺 EHF</button>
           <button class="chip" data-quick="ihf">🌍 IHF</button>
         </div>
-        <p class="muted" id="apiStatusText">Tap <strong>⚙️ Setup</strong> above to connect live scores or download app icons.</p>
+        <p class="muted" id="apiStatusText">Connect your free API-Sports key in <strong>⚙️ Setup</strong> to view the match calendar.</p>
       </div>
+
       <div id="gamesContainer"></div>
+      <button class="btn btn-secondary" id="moreDaysBtn" style="width:100%; display:none; margin-bottom:14px;">➕ Load Next 5 Days</button>
+
       <div class="card">
-        <div class="card-title">Quick Official Scoreboards</div>
+        <div class="card-title">Official Match Centers</div>
         <div class="row">
           <a class="btn btn-blue" href="https://www.ihf.info/competitions" target="_blank" rel="noopener">🌍 IHF Competitions</a>
           <a class="btn btn-blue" href="https://www.eurohandball.com/" target="_blank" rel="noopener">🇪🇺 EHF Live Center</a>
@@ -92,13 +112,13 @@
 
     <section id="panel-setup" class="panel">
       <div class="card">
-        <div class="card-title">1. Make This a True Full-Screen App</div>
-        <p class="muted" style="margin-bottom: 12px;">Download both PNG icons below, upload them to your GitHub repo, wait 1 min, refresh, then tap Chrome <strong>⋮ → Install app</strong>.</p>
+        <div class="card-title">1. Full-Screen App Icons</div>
+        <p class="muted" style="margin-bottom: 12px;">Re-download PNG icons anytime if needed.</p>
         <button class="btn" id="downloadIconsBtn" style="width: 100%;">⬇️ Download App Icons (192 &amp; 512 PNG)</button>
       </div>
       <div class="card">
-        <div class="card-title">2. Connect Free Live Scores</div>
-        <p class="muted" style="margin-bottom: 10px;">Get a free key at <a href="https://dashboard.api-sports.io/" target="_blank" rel="noopener" style="color: var(--blue);">dashboard.api-sports.io</a> (Account → My Access).</p>
+        <div class="card-title">2. Free Live Scores Key</div>
+        <p class="muted" style="margin-bottom: 10px;">From <a href="https://dashboard.api-football.com/login" target="_blank" rel="noopener" style="color: var(--blue);">dashboard.api-football.com</a> (Account → My Access).</p>
         <input type="password" id="apiKeyInput" placeholder="Paste your API-Sports key..." style="margin-bottom: 10px;" />
         <div class="row">
           <button class="btn" id="saveKeyBtn" style="flex:1;">💾 Save Key</button>
