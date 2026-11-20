@@ -80,15 +80,37 @@ function renderGroupedGames(games) {
       const st = g.status?.short || "NS";
       const live = ["1H","2H","HT","ET","BT","PT"].includes(st);
       const ft = ["FT","AET","AP"].includes(st);
+      const home = g.teams?.home?.name || "Home";
+      const away = g.teams?.away?.name || "Away";
+      const league = g.league?.name || "Handball";
+      const yr = (g.date || "").slice(0, 4);
+      const ytHigh = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${home} vs ${away} ${yr} handball highlights`)}`;
+      const ytFull = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${home} vs ${away} ${yr} handball full match`)}`;
+      const isEhf = /ehf|european|champions/i.test(league);
+
       const card = document.createElement("div"); card.className = "match-card";
       card.innerHTML = `<div class="match-top"><span></span><span class="badge ${live?"live":ft?"ft":""}"></span></div><div class="team-row"><span></span><span class="score-num"></span></div><div class="team-row"><span></span><span class="score-num"></span></div>`;
-      card.querySelector(".match-top span").textContent = `${g.country?.name || "Int'l"} • ${g.league?.name || "Handball"}`;
+      card.querySelector(".match-top span").textContent = `${g.country?.name || "Int'l"} • ${league}`;
       card.querySelector(".badge").textContent = live ? `🔴 ${g.status?.long || st}` : (st === "NS" ? (g.time || "Scheduled") : `${st} ${g.time || ""}`);
       const rows = card.querySelectorAll(".team-row");
-      rows[0].children[0].textContent = g.teams?.home?.name || "Home";
+      rows[0].children[0].textContent = home;
       rows[0].children[1].textContent = g.scores?.home ?? "-";
-      rows[1].children[0].textContent = g.teams?.away?.name || "Away";
+      rows[1].children[0].textContent = away;
       rows[1].children[1].textContent = g.scores?.away ?? "-";
+
+      const vBar = document.createElement("div");
+      vBar.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid var(--border);";
+      const mkLink = (href, txt, accent) => {
+        const a = document.createElement("a");
+        a.href = href; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = txt;
+        a.style.cssText = `font-size:0.75rem;font-weight:700;padding:6px 10px;border-radius:8px;text-decoration:none;border:1px solid ${accent ? "rgba(249,115,22,0.45)" : "var(--border)"};background:${accent ? "var(--accent-soft)" : "var(--surface-2)"};color:${accent ? "var(--accent)" : "var(--text)"};`;
+        return a;
+      };
+      vBar.appendChild(mkLink(ytHigh, "▶️ YT Highlights", true));
+      vBar.appendChild(mkLink(ytFull, "🎬 Full Match", false));
+      vBar.appendChild(mkLink(isEhf ? "https://www.ehftv.com/" : "https://www.ihf.info/", isEhf ? "📺 EHFTV" : "🌍 IHF Site", false));
+      card.appendChild(vBar);
       box.appendChild(card);
     });
   });
